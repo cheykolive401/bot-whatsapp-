@@ -1,19 +1,11 @@
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require("@whiskeysockets/baileys")
-const P = require("pino")
 const qrcode = require("qrcode-terminal")
+const P = require("pino")
 
-// COMANDOS
 const menu = require("./comandos/menu")
-const juegos = require("./comandos/juegos")
 const rpg = require("./comandos/rpg")
+const juegos = require("./comandos/juegos")
 const moderacion = require("./comandos/moderacion")
-
-// NUEVOS SISTEMAS
-const gacha = require("./comandos/gacha")
-const memes = require("./comandos/memes")
-const batalla = require("./comandos/batalla")
-
-const prefix = "!"
 
 async function startBot(){
 
@@ -22,64 +14,60 @@ const { version } = await fetchLatestBaileysVersion()
 
 const sock = makeWASocket({
 version,
-logger:P({level:"silent"}),
-auth:state,
-browser:["AnimeBot","Chrome","1.0"]
+logger: P({ level: "silent" }),
+auth: state,
+browser: ["AnimeBot","Chrome","1.0"]
 })
 
 sock.ev.on("creds.update", saveCreds)
 
 sock.ev.on("connection.update",(update)=>{
 
-const { connection, qr } = update
+const { connection, lastDisconnect, qr } = update
 
 if(qr){
-console.log("Escanea el QR:")
+console.log("Escanea este QR:")
 qrcode.generate(qr,{small:true})
 }
 
-if(connection==="open"){
+if(connection === "connecting"){
+console.log("Conectando a WhatsApp...")
+}
+
+if(connection === "open"){
 console.log("🌸 AnimeBot conectado")
 }
 
-if(connection==="close"){
-console.log("Conexión cerrada, reiniciando...")
+if(connection === "close"){
+
+const reason = lastDisconnect?.error?.output?.statusCode
+
+console.log("Conexión cerrada:", reason)
+
+if(reason !== 401){
+console.log("Reintentando conexión...")
 startBot()
+}else{
+console.log("Sesión inválida. Borra la carpeta session.")
+}
+
 }
 
 })
 
-sock.ev.on("messages.upsert", async ({messages})=>{
+sock.ev.on("messages.upsert", async ({ messages }) => {
 
-const m = messages[0]
-if(!m.message) return
+const msg = messages[0]
+if(!msg.message) return
 
-const msg =
-m.message.conversation ||
-m.message.extendedTextMessage?.text
+const from = msg.key.remoteJid
+const body = msg.message.conversation || msg.message.extendedTextMessage?.text || ""
 
-if(!msg) return
+if(body.startsWith("!menu")) menu(sock,msg,from)
+if(body.startsWith("!rpg")) rpg(sock,msg,from)
+if(body.startsWith("!juego")) juegos(sock,msg,from)
 
-const from = m.key.remoteJid
-const sender = m.key.participant || from
-
-// moderación
 moderacion(sock,msg,from)
-
-// verificar prefijo
-if(!msg.startsWith(prefix)) return
-
-const command = msg.slice(1).split(" ")[0]
-
-// comandos básicos
-menu(sock,command,from,sender)
-juegos(sock,command,from,sender)
-rpg(sock,command,from,sender)
-
-// sistemas avanzados
-gacha(sock,command,from,sender)
-memes(sock,command,from,sender)
-batalla(sock,command,from,sender)
 
 })
 
