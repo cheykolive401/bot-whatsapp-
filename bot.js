@@ -16,18 +16,19 @@ const sock = makeWASocket({
 version,
 logger: P({ level: "silent" }),
 auth: state,
-browser: ["AnimeBot","Chrome","1.0"]
+browser: ["AnimeBot","Chrome","1.0"],
+printQRInTerminal: false
 })
 
 sock.ev.on("creds.update", saveCreds)
 
-sock.ev.on("connection.update",(update)=>{
+sock.ev.on("connection.update", (update) => {
 
 const { connection, lastDisconnect, qr } = update
 
 if(qr){
 console.log("Escanea este QR:")
-qrcode.generate(qr,{small:true})
+qrcode.generate(qr, { small: true })
 }
 
 if(connection === "connecting"){
@@ -61,13 +62,16 @@ const msg = messages[0]
 if(!msg.message) return
 
 const from = msg.key.remoteJid
-const body = msg.message.conversation || msg.message.extendedTextMessage?.text || ""
+const body =
+msg.message.conversation ||
+msg.message.extendedTextMessage?.text ||
+""
 
-if(body.startsWith("!menu")) menu(sock,msg,from)
-if(body.startsWith("!rpg")) rpg(sock,msg,from)
-if(body.startsWith("!juego")) juegos(sock,msg,from)
+if(body.startsWith("!menu")) menu(sock, msg, from)
+if(body.startsWith("!rpg")) rpg(sock, msg, from)
+if(body.startsWith("!juego")) juegos(sock, msg, from)
 
-moderacion(sock,msg,from)
+moderacion(sock, msg, from)
 
 })
 
